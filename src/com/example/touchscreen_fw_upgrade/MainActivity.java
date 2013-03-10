@@ -2,6 +2,7 @@ package com.example.touchscreen_fw_upgrade;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -11,6 +12,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
@@ -18,18 +20,41 @@ public class MainActivity extends Activity {
 	private final static String PATH_MANUAL_UPGRADE = "/sys/bus/ttsp4/devices/cyttsp4_loader.main_ttsp_core/manual_upgrade";
 	private final static String PATH_FIRMWARE_DATA = "/sys/class/firmware/cyttsp4_loader.main_ttsp_core/data";
 	private final static String PATH_FIRMWARE_LOADING = "/sys/class/firmware/cyttsp4_loader.main_ttsp_core/loading";
+	private final static String PATH_FW = "/mnt/sdcard/fw/";
 	private final static String TAG = "TouchScreen";
-
 	
-	private void showInfo(String string) {
-		//Create the ic info text
-		TextView infoView = new TextView(this);
-		infoView.setTextSize(15);
-		infoView.setText(string);
+	//private EditText readEdt;
+	private TextView tpInfoView;
+	private TextView fwInfoView;
+	private Button fwUpgradeButton;
+	/*private void saveToSdcard(String string) {
+	
+		String filename = "touch_info";
+		FileOutputStream outputStream;
+		File file = new File(this.getFileDir(),filename);
 		
-		//Set the text view as the activity layout
-		setContentView(infoView);
+		try {
+			outputStream = openFileOutput();
+		}
 	}
+	*/
+	private void showInfo(String string) {
+		tpInfoView.setText(string);
+	}
+
+
+	/*private void saveToSdcar(String string) {
+	
+		String filename = "touch_info";
+		FileOutputStream outputStream;
+		File file = new File(this.getFileDir(),filename);
+		
+		try {
+			outputStream = openFileOutput();
+		}
+	}
+	*/
+
 	
 	
 	private String readLine(String filename) throws IOException{
@@ -110,15 +135,49 @@ public class MainActivity extends Activity {
 					e.printStackTrace();
 				}
 				showInfo(ret);
+				//save to sdcard
+				//saveToSdcard(ret);
 			}
 		}.start();
 	}
+	
+	// find touchscreen firmware in sdcard, if exist return true, else return false;
+	private boolean findFw(){
+		try {
+			File fw = new File(PATH_FW + "cyttsp4.bin");
+			if (!fw.exists())
+				return false;
+		}catch (Exception e) {
+			//TODO
+			return false;
+		}
+		
+		return true;
+	}
+	
+	private void getFw(){
+		if (!findFw()) {;
+			fwInfoView.setText(PATH_FW + "cyttsp4.bin" + " not exist!");
+			fwUpgradeButton.setText("NO FW FOUND!");
+		}else {
+			fwInfoView.setText("Found firmware: " + PATH_FW + "cyttsp4.bin");
+			fwUpgradeButton.setText("FW Upgrade");
+		}
+	}
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+
+		tpInfoView = (TextView)findViewById(R.id.tpInfoView);
+		fwInfoView = (TextView)findViewById(R.id.fwInfoView);
+		fwUpgradeButton = (Button)findViewById(R.id.fwUpgradeButton);
+	
 		/*get touchscreen ic info and show it to me*/
 		getTpInfo();
+		/*find the fw in sdcard*/
+		getFw();
 	}
 	
 	@Override
@@ -130,9 +189,16 @@ public class MainActivity extends Activity {
 	
 	 /** Called when the user clicks the confirm button*/ 
     public void sendMessage(View view){
-		new Thread() {
+		if (!findFw()){
+			fwUpgradeButton.setText("NO FW FOUND!");
+			return;
+		}else {
+			fwUpgradeButton.setText("fw upgrading...");
+		}
+    	new Thread() {
 			public void run() {
 				//request firmware upgrade from user space
+		
 		    	try {
 					writeFile(PATH_MANUAL_UPGRADE,"1");
 				} catch (IOException e) {
@@ -146,11 +212,11 @@ public class MainActivity extends Activity {
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
-				}
-		    	
+				}   	
 		    	//start load firmware into kernel
 		    	
 			}
 		}.start();
+		fwUpgradeButton.setText("upgrade success!");
     }
 }
