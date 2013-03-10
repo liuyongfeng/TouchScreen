@@ -3,4 +3,5 @@
 *.apk
 *.cache
 *.ap_
-
+bin/
+gen/

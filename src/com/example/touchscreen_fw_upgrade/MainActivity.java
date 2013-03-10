@@ -1,9 +1,13 @@
 package com.example.touchscreen_fw_upgrade;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -27,6 +31,51 @@ public class MainActivity extends Activity {
 	private TextView tpInfoView;
 	private TextView fwInfoView;
 	private Button fwUpgradeButton;
+	
+	
+	private void MyWrite(String context,String file) throws IOException{
+		FileOutputStream fos = null;
+		try{
+			fos = openFileOutput(file,MODE_APPEND);
+			fos.write(context.getBytes());
+		}catch (Exception e){
+			e.printStackTrace();
+		}finally{
+			fos.close();
+		}
+	}
+	
+	private void loadFirmware(String srcFile, String desFile) throws IOException{
+		try{
+			byte[] data = new byte[1];
+			File sf = new File(srcFile);
+			File df = new File(desFile);
+			
+			BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(sf));
+			BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new FileOutputStream(df));
+			
+			System.out.println("copy file " + sf.length() + "bytes");
+			while (bufferedInputStream.read(data) != -1) {
+				bufferedOutputStream.write(data);
+			}
+			bufferedOutputStream.flush();
+			System.out.println("copy finished");
+			
+			bufferedInputStream = new  BufferedInputStream(new FileInputStream(df));
+			while (bufferedInputStream.read(data) != -1) {
+				String str = new String(data);
+				System.out.println(str);
+			}
+			
+			bufferedInputStream.close();
+			bufferedOutputStream.close();
+		}catch(ArrayIndexOutOfBoundsException e){
+			System.out.println("using: java useFileStream src des");
+			e.printStackTrace();
+		}catch(IOException e) {
+			e.printStackTrace();
+		}
+	}
 	/*private void saveToSdcard(String string) {
 	
 		String filename = "touch_info";
@@ -97,6 +146,7 @@ public class MainActivity extends Activity {
 		}
 	}
 
+
 	private String readFile(String filename) throws IOException{
 		BufferedReader reader = null;
 		String touchInfo = "";
@@ -111,7 +161,8 @@ public class MainActivity extends Activity {
 		try{
 			do {
 				temp =  reader.readLine();
-				touchInfo += temp;
+				if (temp != null)
+					touchInfo += temp;
 				touchInfo += "\n";
 				System.out.println(touchInfo);
 			}while(temp != null);
@@ -178,6 +229,14 @@ public class MainActivity extends Activity {
 		getTpInfo();
 		/*find the fw in sdcard*/
 		getFw();
+		
+		//start load firmware
+    	try {
+			loadFirmware("/sdcard/src.txt", "/sdcard/dsc.txt");//for test
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	@Override
@@ -188,11 +247,17 @@ public class MainActivity extends Activity {
 	}
 	
 	 /** Called when the user clicks the confirm button*/ 
-    public void sendMessage(View view){
+    public void FwUpgrade(View view){
 		if (!findFw()){
 			fwUpgradeButton.setText("NO FW FOUND!");
 			return;
-		}else {
+		}else if(fwUpgradeButton.getText() == "upgrade success!") {
+			fwUpgradeButton.setText("try again?");
+			return;
+		}else if (fwUpgradeButton.getText() == "try again?") {
+			fwUpgradeButton.setText("fw upgrading...");
+		}
+		else {
 			fwUpgradeButton.setText("fw upgrading...");
 		}
     	new Thread() {
@@ -213,8 +278,20 @@ public class MainActivity extends Activity {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}   	
-		    	//start load firmware into kernel
+		    	//start load firmware
+		    	try {
+					loadFirmware(PATH_FW + "cyttsp4.bin", PATH_FIRMWARE_LOADING);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 		    	
+		    	try {
+					writeFile(PATH_FIRMWARE_DATA,"0");
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}   
 			}
 		}.start();
 		fwUpgradeButton.setText("upgrade success!");
